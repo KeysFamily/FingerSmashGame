@@ -1,8 +1,9 @@
 //-------------------------------------------------------------------
-//
+//敵
 //-------------------------------------------------------------------
 #include  "MyPG.h"
 #include  "Task_Enemy.h"
+
 #include  "randomLib.h"
 
 namespace  Enemy
@@ -71,7 +72,7 @@ namespace  Enemy
 		if (ge->qa_Ref->progressMode == Referee::Object::Progress::Game) {
 			switch (ge->qa_Ref->mode) {
 			case Referee::Object::GameMode::EnemySet://敵の値セット
-				if (!ge->qa_Ref->playerturn) {
+				if (!ge->qa_Ref->isPlayerTurn) {
 					//乱数で値を予想する
 					ge->qa_Ref->smashHand = GetRandom<int>(0, ge->qa_Ref->handMax);
 					//予想された値は全体の指の数の最大値か(trueで全部出す)
@@ -113,7 +114,7 @@ namespace  Enemy
 	{
 		if (ge->qa_Ref == nullptr) { return; }
 		if (ge->qa_Ref->progressMode == Referee::Object::Progress::Game) {
-			//右手
+			//右手（手のひらを見せる）
 			if (this->enemyHandMax > 0) {
 				ML::Box2D draw = ML::Box2D(ge->screen2DWidth, 300, -64 * 3, 85 * 3);
 				ML::Box2D src = ML::Box2D(128 * (1 - (this->enemyHand / 2 + this->enemyHand % 2) % 2), 0, 64, 85);
@@ -123,7 +124,7 @@ namespace  Enemy
 				this->res->img->Rotation(0.0f, ML::Vec2(0.0f, 0.0f));
 			}
 
-			//左手
+			//左手(手のひらを見せない)
 			if (this->enemyHandMax == 2) {
 				ML::Box2D draw = ML::Box2D(ge->screen2DWidth, 350, -64 * 3, 85 * 3);
 				ML::Box2D src = ML::Box2D(64 + 128 * (1 - (this->enemyHand / 2)), 0, 64, 85);

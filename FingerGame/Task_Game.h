@@ -48,8 +48,7 @@ namespace  Game
 	public:
 		//追加したい変数・メソッドはここに追加する
 		int fadeCnt;	//フェードカウンタ
-		int plHandMax;
-		int eneHandMax;
 		bool isPause;	//ポーズの間true
+
 	};
 }

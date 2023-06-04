@@ -1,5 +1,5 @@
 //-------------------------------------------------------------------
-//
+// プレイヤ処理
 //-------------------------------------------------------------------
 #include  "MyPG.h"
 #include  "Task_Player.h"
@@ -56,44 +56,38 @@ namespace  Player
 	void  Object::UpDate()
 	{
 		auto inp = ge->in1->GetState();
-
-		if (ge->qa_Ref->progressMode == Referee::Object::Progress::Game) {
-			switch (ge->qa_Ref->mode)
-			{
-			case Referee::Object::GameMode::PlayerSet://手の選択
-				if (ge->qa_Ref->playerturn) {
-					//数字の予想
-					if (inp.LStick.BL.down) {//左
-						se::Play("decision");
-						--ge->qa_Ref->smashHand;
-						if (ge->qa_Ref->smashHand < 0) {
-							ge->qa_Ref->smashHand = ge->qa_Ref->handMax;
-						}
-					}
-					else if(inp.LStick.BR.down) {//右
-						se::Play("decision");
-						ge->qa_Ref->smashHand = (ge->qa_Ref->smashHand + 1) % (ge->qa_Ref->handMax + 1);
-					}
-				}
-				//自分の数字の数の設定
-				if (inp.LStick.BD.down) {//下
+		if (ge->qa_Ref == nullptr) { return; }
+		if (ge->qa_Ref->progressMode == Referee::Object::Progress::Game 
+			&& ge->qa_Ref->mode == Referee::Object::GameMode::PlayerSet) {
+			if (ge->qa_Ref->isPlayerTurn) {
+				//数字の予想
+				if (inp.LStick.BL.down) {//左
 					se::Play("decision");
-					--this->myHand;
-					if (this->myHand < 0) {
-						this->myHand = this->myHandMax;
+					--ge->qa_Ref->smashHand;
+					if (ge->qa_Ref->smashHand < 0) {
+						ge->qa_Ref->smashHand = ge->qa_Ref->handMax;
 					}
 				}
-				else if (inp.LStick.BU.down) {//上
+				else if(inp.LStick.BR.down) {//右
 					se::Play("decision");
-					this->myHand = (this->myHand + 1) % (this->myHandMax + 1);
+					ge->qa_Ref->smashHand = (ge->qa_Ref->smashHand + 1) % (ge->qa_Ref->handMax + 1);
 				}
-				if (inp.SE.down) {
-					se::Play("Select");
-					ge->qa_Ref->mode = Referee::Object::GameMode::Effect;//次のモードに
+			}
+			//自分の数字の数の設定
+			if (inp.LStick.BD.down) {//下
+				se::Play("decision");
+				--this->myHand;
+				if (this->myHand < 0) {
+					this->myHand = this->myHandMax;
 				}
-				break;
-			default:
-				break;
+			}
+			else if (inp.LStick.BU.down) {//上
+				se::Play("decision");
+				this->myHand = (this->myHand + 1) % (this->myHandMax + 1);
+			}
+			if (inp.SE.down) {
+				se::Play("Select");
+				ge->qa_Ref->mode = Referee::Object::GameMode::Effect;//次のモードに
 			}
 		}
 	}
@@ -103,7 +97,7 @@ namespace  Player
 	{
 		if (ge->qa_Ref == nullptr) { return; }
 		if (ge->qa_Ref->progressMode == Referee::Object::Progress::Game) {
-			//左手
+			//左手（手のひらを見せる）
 			if (this->myHandMax == 2) {
 				ML::Box2D draw = ML::Box2D(0, 300, 64 * 3, 85 * 3);
 				ML::Box2D src = ML::Box2D(128 * (1 - (this->myHand / 2)), 0, 64, 85);
@@ -113,7 +107,7 @@ namespace  Player
 				this->res->img->Rotation(0.0f, ML::Vec2(0.0f, 0.0f));
 			}
 
-			//右手
+			//右手（手のひらを見せない）
 			if (this->myHandMax > 0) {
 				ML::Box2D draw = ML::Box2D(0, 350, 64 * 3, 85 * 3);
 				ML::Box2D src = ML::Box2D(64 + 128 * (1 - (this->myHand / 2 + this->myHand % 2) % 2), 0, 64, 85);

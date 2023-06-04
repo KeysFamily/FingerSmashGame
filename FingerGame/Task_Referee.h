@@ -23,7 +23,6 @@ namespace  Referee
 		static   WP  instance;
 		static  Resource::SP  Create();
 		//共有する変数はここに追加する
-		//「変数宣言を書く」
 		
 		DG::Image::SP imgPlayer;
 		DG::Image::SP imgCPU;
@@ -62,54 +61,37 @@ namespace  Referee
 		bool  Finalize();		//「終了」タスク消滅時に１回だけ行う処理
 	//変更可◇◇◇◇◇◇◇◇◇◇◇◇◇◇◇◇◇◇◇◇◇◇◇◇◇◇◇
 	public:
-		//追加したい変数・メソッドはここに追加する
-		//「変数宣言を書く」
-		//「追加メソッドを書く」
 
-		//------------
-		// プレイヤーのターンかどうか（ゲームモード1,進行モード1で動作）
-		// true:プレイヤーの番
-		// false:敵の番
-		// 
-		//------------
-		bool playerturn;	//プレイヤーの番ならtrue
-
-		//------------
-		// ゲームモード（進行モードが1の時に動作）
-		// 0全体であげられる手の最大の取得
-		// 
-		// 1自分の出し目の選択
-		// 2上処理の直後に相手の出し目の設定
-		// 
-		// （演出があれば追加）
-		// 判定
-		//------------
-		enum class GameMode {//GameMode用
-			Non,
-			RefSet,		//審判設定
-			PlayerSet,	//プレイヤー設定
-			Judge,		//判定
-			EnemySet,	//敵設定
-			Effect,		//演出
+		enum class GameMode {	//ゲームモード
+			Non,			//特になし
+			RefSet,			//審判設定
+			PlayerSet,		//プレイヤー設定
+			Judge,			//判定
+			EnemySet,		//敵設定
+			Effect,			//演出
 			MiddleResult,	//途中結果
 		};
 		GameMode mode;			//敵タスクとプレイヤータスクのモードを管理
 
-		//------------
-		// 進行カウンタ
-		// 0.先攻後攻の選択
-		// 1.ゲームの進行
-		// 2.勝敗
-		//------------
-		//int progressMode;
-		enum class Progress {
-			Non,
-			FirstSecond,//先攻後攻の決定
-			Attack,		//あなたは「先攻or後攻」
-			Game,		//ゲーム
-			Result		//リザルト
+		enum class Progress {	//進行モード
+			Non,			//特になし
+			FirstSecond,	//先攻後攻の決定
+			Attack,			//あなたは「先攻or後攻」
+			Game,			//ゲーム
+			Result			//リザルト
 		};
 		Progress progressMode;
+
+#if false
+		typedef std::map<Referee::Object::GameMode, std::function<void()>> GameModeMap;
+		typedef std::map<Progress, std::function<void()>> ProgressMap;
+#else
+		using GameModeMap = std::map<Referee::Object::GameMode, std::function<void()>>;
+		using ProgressMap = std::map<Progress, std::function<void()>>;
+#endif
+		
+		bool isPlayerTurn;	//プレイヤーの番か？
+		bool isPredictably;	//予想された数と実際の数が同じか？
 
 		//------
 		// プレイヤーの先攻後攻の選択
@@ -117,21 +99,18 @@ namespace  Referee
 		// 1.後攻
 		// 2.コンピュータに任せる
 		//------
-		int attackSelect;
+		int selectAttackType;
 
-		int hand;		//全体で上げた手
-		int smashHand;	//予想された手の数
-		int handMax;	//全体で上げられる手
+		int hand;			//全体で上げた手
+		int smashHand;		//予想された手の数
+		int handMax;		//全体で上げられる手
 
-		bool equalFlag;//予想された数と実際の数が同じとき
 		//演出
-		int effectCnt;//エフェクトカウンタ
+		int effectCnt;		//エフェクトカウンタ
 
-		int dayCnt;//デイカウンタ（ターンごとにインクリメント）
+		int dayCnt;			//デイカウンタ（ターンごとにインクリメント）
 
 		enum class Dir { Right, Left };
-		//
-		// 
 		// x_,y_	一文字目の座標[左方向なら右端,右方向なら左端]
 		// w_,h_	一文字当たりの大きさ
 		// n_		表示したい数
@@ -139,7 +118,40 @@ namespace  Referee
 		//	left:000[1]←
 		// Right:→[1]000
 		//----
-		void Render_Number(int x_, int y_, int w_, int h_, int n_, Dir dir_);
+		void Number_Render(int x_, int y_, int w_, int h_, int n_, Dir dir_);
+
+	private:
+		//関数群配列
+		ProgressMap progressUpDateMap, progressRenderMap;
+		void ProgressMap_Initialize();
+		void ProgressMap_Finalize();
+
+		//進行モードごとの処理
+		void Progress_UpDate(Progress progress_);
+		void FirstSecond_UpDate();
+		void Attack_UpDate();
+		void Game_UpDate();
+
+		void Progress_Render(Progress progress_);
+		void FirstSecond_Render();
+		void Attack_Render();
+		void Game_Render();
+		void Result_Render();
+
+		//ゲーム動作モードの処理
+		GameModeMap gamemodeUpDateMap, gamemodeRenderMap;
+		void ModeMap_Initialize();
+		void ModeMap_Finalize();
+
+		void GameMode_UpDate(GameMode mode_);
+		void Refset_UpDate();
+		void Effect_UpDate();
+		void Judge_UpDate();
+		void MiddleResult_UpDate();
+
+		void GameMode_Render(GameMode mode_);
+		void PleyerSet_Render();
+		void JudgeMiddleResult_Render();
 
 	};
 }

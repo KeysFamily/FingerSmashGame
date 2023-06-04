@@ -1,13 +1,17 @@
 //-------------------------------------------------------------------
-//
+// 審判タスク
 //-------------------------------------------------------------------
 #include  "MyPG.h"
-#include  "Task_Game.h"
 #include  "Task_Referee.h"
+
+#include  "sound.h"
+#include  "randomLib.h"
+
+#include  "Task_Game.h"
 #include  "Task_Player.h"
 #include  "Task_Enemy.h"
-#include  "randomLib.h"
-#include  "sound.h"
+
+#define ADVANCE	//定義されていればこれを実行する
 
 namespace Referee
 {
@@ -62,21 +66,26 @@ namespace Referee
 		//★データ初期化
 		this->render2D_Priority[1] = 0.7f;
 
-		this->playerturn = false;
+		this->isPlayerTurn = false;
 		this->mode = GameMode::RefSet;
 		this->progressMode = Progress::FirstSecond;
-		this->attackSelect = 0;
+		this->selectAttackType = 0;
 
 		this->hand = 0;
 		this->smashHand = 0;
 		this->handMax = 0;
-		ge->GameClearFlag = ge->GameOverFlag = false;
+
 		this->effectCnt = 0;
-		this->equalFlag = false;
+		this->isPredictably = false;
 
 		this->dayCnt = 0;
+
+		ge->GameClearFlag = ge->GameOverFlag = false;
 		//★タスクの生成
-		
+#ifdef ADVANCE
+		this->ProgressMap_Initialize();
+		this->ModeMap_Initialize();
+#endif // ADVANCE
 
 		return  true;
 	}
@@ -85,7 +94,8 @@ namespace Referee
 	bool  Object::Finalize()
 	{
 		//★データ＆タスク解放
-		
+		this->ModeMap_Finalize();
+		this->ProgressMap_Finalize();
 
 		if (!ge->QuitFlag() && this->nextTaskCreate) {
 			//★引き継ぎタスクの生成
@@ -105,30 +115,33 @@ namespace Referee
 		auto ene = ge->GetTask<Enemy::Object>(Enemy::defGroupName, Enemy::defName);
 		if (pl == nullptr || ene == nullptr) { return; }
 		
+#ifdef ADVANCE
+		this->Progress_UpDate(this->progressMode);
+#else
 		switch (this->progressMode)
 		{
 		case Progress::FirstSecond://先攻後攻の選択
 			//最小値最大値を超えないための処理
 			if (inp.LStick.BU.down) {//上
 				se::Play("decision");
-				this->attackSelect = (this->attackSelect + 1) % 3;
+				this->selectAttackType = (this->selectAttackType + 1) % 3;
 			}
 			else if(inp.LStick.BD.down) {//下
 				se::Play("decision");
-				--this->attackSelect;
-				if (this->attackSelect < 0) {
-					this->attackSelect = 2;
+				--this->selectAttackType;
+				if (this->selectAttackType < 0) {
+					this->selectAttackType = 2;
 				}
 			}
 			//もし数字が確定したなら
 			if (inp.SE.down) {
 				se::Play("Select");
-				if (this->attackSelect < 2) {
-					this->playerturn = (this->attackSelect % 2 == 0);
+				if (this->selectAttackType < 2) {
+					this->isPlayerTurn = (this->selectAttackType % 2 == 0);
 				}
 				else {
 					//乱数で決定する
-					this->playerturn = (GetRandom<int>(0, 9) % 2 == 0);
+					this->isPlayerTurn = (GetRandom<int>(0, 9) % 2 == 0);
 				}
 				//ゲームモードに移行
 				this->progressMode = Progress::Attack;
@@ -164,7 +177,7 @@ namespace Referee
 					ge->CreateEffect(98, ML::Vec2());//フェード
 					ge->CreateEffect(10, ML::Vec2());//ゆびすま～
 					//発音
-					se::Play(this->playerturn ? "player" : "cpu");
+					se::Play(this->isPlayerTurn ? "player" : "cpu");
 				}
 				if (++this->effectCnt > 100) {
 					//エフェクト開始から一定秒数たってから判定を開始する
@@ -179,12 +192,12 @@ namespace Referee
 				//発音
 				{
 					string seName;
-					seName = (this->playerturn ? "player" : "cpu") + to_string(this->smashHand);
+					seName = (this->isPlayerTurn ? "player" : "cpu") + to_string(this->smashHand);
 					se::Play(seName);
 				}
 				//全体であげられた手を取得
 				this->hand = pl->myHand + ene->enemyHand;
-				this->equalFlag = this->hand == this->smashHand;
+				this->isPredictably = this->hand == this->smashHand;
 				mode = GameMode::MiddleResult;
 
 				break;
@@ -197,8 +210,8 @@ namespace Referee
 					se::Play("Select");
 					//どちらかの指が先に降りたらループを抜ける
 					//予想された値と全体であげられた値が同じなら（予想通りなら）予想した側のあげられる指の数を減らす
-					if (this->equalFlag) {
-						if (this->playerturn) {
+					if (this->isPredictably) {
+						if (this->isPlayerTurn) {
 							--pl->myHandMax;
 						}
 						else {
@@ -217,7 +230,7 @@ namespace Referee
 					}
 					else {
 						//なくなっていなければターンを切り替える
-						this->playerturn = !this->playerturn;
+						this->isPlayerTurn = !this->isPlayerTurn;
 
 						//審判モードに戻す
 						this->mode = GameMode::RefSet;
@@ -239,6 +252,7 @@ namespace Referee
 		default:
 			break;
 		}
+#endif
 	}
 	//-------------------------------------------------------------------
 	//「２Ｄ描画」１フレーム毎に行う処理
@@ -247,9 +261,12 @@ namespace Referee
 		auto game = ge->GetTask<Game::Object>(Game::defGroupName, Game::defName);
 		if (game->isPause) { return; }
 		//モードによって色合いを変えるためのもの
-		ML::Color white(1.0f, 1.0f, 1.0f, 1.0f);
-		ML::Color red(1.0f, 1.0f, 0.7f, 0.0f);
+		//ML::Color white(1.0f, 1.0f, 1.0f, 1.0f);
+		//ML::Color red(1.0f, 1.0f, 0.7f, 0.0f);
+#ifdef ADVANCE
+		this->Progress_Render(this->progressMode);
 
+#else
 		switch (this->progressMode) {
 		case Progress::FirstSecond://先攻後攻の選択
 			
@@ -262,7 +279,7 @@ namespace Referee
 			{
 				//項目表示(先攻/後攻/コンピュータが決める)
 				ML::Box2D drawSel(150, ge->screenHeight / 2, 956, 137);
-				ML::Box2D srcSel(0, 91 * (this->attackSelect + 1), 637, 91);//この値を1.5倍
+				ML::Box2D srcSel(0, 91 * (this->selectAttackType + 1), 637, 91);//この値を1.5倍
 				this->res->imgSelector->Draw(drawSel, srcSel);
 			}
 			{	//操作方法表示
@@ -283,15 +300,15 @@ namespace Referee
 		case Progress::Attack:
 			{
 				//先攻、後攻
-				ML::Box2D draw = GameLib::SetBoxByCenter(ge->screenWidth / 2, ge->screenHeight / 2, 30 * this->effectCnt, 15 * this->effectCnt);
-				//draw = GameLib::SetBoxByCenter(ge->screenWidth / 2, ge->screenHeight / 2, 64, 84);
-				ML::Box2D src(0, this->playerturn ? 90 : 180, 180, 90);
+				ML::Box2D draw = MyGameLib::SetCenteredBox(ge->screenWidth / 2, ge->screenHeight / 2, 30 * this->effectCnt, 15 * this->effectCnt);
+				//draw = MyGameLib::SetCenteredBox(ge->screenWidth / 2, ge->screenHeight / 2, 64, 84);
+				ML::Box2D src(0, this->isPlayerTurn ? 90 : 180, 180, 90);
 				this->res->imgFirSecAttack->Draw(draw, src);
 				
 				//あなたは？
 				ML::Box2D drawYour(0, 0, 9 * this->effectCnt, 3 * this->effectCnt);
 				drawYour.Offset(draw.x - drawYour.w / 2, draw.y - drawYour.h / 2);
-				//draw = GameLib::SetBoxByCenter(ge->screenWidth / 2, ge->screenHeight / 2, 64, 84);
+				//draw = MyGameLib::SetCenteredBox(ge->screenWidth / 2, ge->screenHeight / 2, 64, 84);
 				ML::Box2D srcYour(0, 0, 270, 90);
 				this->res->imgFirSecAttack->Draw(drawYour, srcYour);
 
@@ -308,22 +325,22 @@ namespace Referee
 				//敵表示
 				ML::Box2D draw(0, 630, 220, 100);
 				ML::Box2D src(0, 0, 221, 97);
-				this->res->imgPlayer->Draw(draw, src, this->playerturn ? red : white);
+				this->res->imgPlayer->Draw(draw, src, this->isPlayerTurn ? red : white);
 			}
 			{
 				//プレイヤー表示
 				ML::Box2D draw(1130, 630, 150, 90);
 				ML::Box2D src(0, 0, 149, 90);
-				this->res->imgCPU->Draw(draw, src, !this->playerturn ? red : white);
+				this->res->imgCPU->Draw(draw, src, !this->isPlayerTurn ? red : white);
 			}
 			{
 				//あなたorCPUの番です
 				ML::Box2D draw(0, 0, 540,68);//360 * 1.5f, 45 * 1.5f
-				ML::Box2D src(0, this->playerturn ? 0 : 90, 720, 90);
+				ML::Box2D src(0, this->isPlayerTurn ? 0 : 90, 720, 90);
 				this->res->imgTurn->Draw(draw, src);
 			}
 			//経過時間の表示
-			Render_Number(800, ge->screenHeight - 90, 60, 90, this->dayCnt / 3 + 1, Dir::Left);
+			Number_Render(800, ge->screenHeight - 90, 60, 90, this->dayCnt / 3 + 1, Dir::Left);
 			{
 				ML::Box2D draw(860, ge->screenHeight - 90, 150, 90);
 				ML::Box2D src(0, 0, 147, 87);
@@ -342,14 +359,14 @@ namespace Referee
 
 					//『決定』
 					ML::Box2D draw2(0, 0, 771 / 2, 92 / 2);
-					draw2.Offset(ge->screenWidth - draw2.w, this->playerturn ? draw1.h * 2 : draw1.h);
+					draw2.Offset(ge->screenWidth - draw2.w, this->isPlayerTurn ? draw1.h * 2 : draw1.h);
 					ML::Box2D src2(0, 0, 771, 92);
 
 					this->res->imgController->Draw(draw1, src1);
 					this->res->imgController->Draw(draw2, src2);
 				}
 				//プレイヤーの攻撃時のみ
-				if (this->playerturn) {
+				if (this->isPlayerTurn) {
 					{
 						//【予想された数】表示
 						ML::Box2D draw(300, 300, 536, 90);
@@ -359,7 +376,7 @@ namespace Referee
 					{
 						//予想された【数】表示
 						
-						Render_Number(840, 305, 64, 84, this->smashHand, Dir::Left);
+						Number_Render(840, 305, 64, 84, this->smashHand, Dir::Left);
 					}
 					{
 						//『予想する指の数』
@@ -378,8 +395,8 @@ namespace Referee
 			else if (mode == GameMode::Judge || mode == GameMode::MiddleResult) {
 				
 				//ゆびすま～〇！
-				ML::Box2D draw = GameLib::SetBoxByCenter(ge->screenWidth / 2, ge->screenHeight / 2, 15 * this->effectCnt, 23 * this->effectCnt);
-				Render_Number(draw.x, draw.y, draw.w, draw.h, this->smashHand, Dir::Left);
+				ML::Box2D draw = MyGameLib::SetCenteredBox(ge->screenWidth / 2, ge->screenHeight / 2, 15 * this->effectCnt, 23 * this->effectCnt);
+				Number_Render(draw.x, draw.y, draw.w, draw.h, this->smashHand, Dir::Left);
 
 
 				//次へ
@@ -388,11 +405,11 @@ namespace Referee
 				ML::Box2D srcNext(0, 0, 270, 90);
 				this->res->imgTerminal->Draw(drawNext, srcNext);
 
-				if (this->playerturn) {
+				if (this->isPlayerTurn) {
 					//あたりorはずれ
 					ML::Box2D drawJudge(draw.x + draw.w * 4 / 5, draw.y + draw.h * 3 / 5, 8 * this->effectCnt, (int)(3.45f * this->effectCnt));
 					ML::Box2D srcJudge(0, 0, 199, 86);
-					if (!this->equalFlag) {
+					if (!this->isPredictably) {
 						srcJudge.Offset(0, 86);
 					}
 					this->res->imgMiddleResult->Draw(drawJudge, srcJudge);
@@ -403,7 +420,7 @@ namespace Referee
 
 			break;
 		case Progress::Result://勝敗
-			ML::Box2D draw = GameLib::SetBoxByCenter(ge->screenWidth / 2, ge->screenHeight / 3, 408 * 2, 91 * 2);
+			ML::Box2D draw = MyGameLib::SetCenteredBox(ge->screenWidth / 2, ge->screenHeight / 3, 408 * 2, 91 * 2);
 			ML::Box2D src;
 			if (ge->GameClearFlag) {//プレイヤーの勝ち
 				src = ML::Box2D(0, 0, 408, 91);
@@ -414,7 +431,7 @@ namespace Referee
 			this->res->imgJudgement->Draw(draw, src);
 			
 			//終了
-			ML::Box2D drawNext = GameLib::SetBoxByCenter(ge->screenWidth / 2, ge->screenHeight * 2 / 3, 270, 90);
+			ML::Box2D drawNext = MyGameLib::SetCenteredBox(ge->screenWidth / 2, ge->screenHeight * 2 / 3, 270, 90);
 			ML::Box2D srcNext(0, 90, 270, 90);
 			this->res->imgTerminal->Draw(drawNext, srcNext);
 			
@@ -422,10 +439,12 @@ namespace Referee
 		}
 		
 		
-		
+#endif
 	}
-
-	void Object::Render_Number(int x_, int y_, int w_, int h_, int n_, Object::Dir dir_) {
+	//-------------------------------------------------------------------
+	// 数字描画関数
+	//-------------------------------------------------------------------
+	void Object::Number_Render(int x_, int y_, int w_, int h_, int n_, Object::Dir dir_) {
 		//桁数を把握
 		int digit;
 		if (n_ == 0) { 
@@ -443,6 +462,376 @@ namespace Referee
 			this->res->imgNumber->Draw(draw, src);
 			n_ /= 10;
 		}
+
+	}
+	//-------------------------------------------------------------------
+	// 進行モードを実行中の処理
+	//-------------------------------------------------------------------
+	void Object::ProgressMap_Initialize() {
+		//更新
+		progressUpDateMap[Progress::FirstSecond] = std::bind(&Referee::Object::FirstSecond_UpDate, this);
+		progressUpDateMap[Progress::Attack] = std::bind(&Referee::Object::Attack_UpDate, this);
+		progressUpDateMap[Progress::Game] = std::bind(&Referee::Object::Game_UpDate, this);
+
+		//描画
+		progressRenderMap[Progress::FirstSecond] = std::bind(&Referee::Object::FirstSecond_Render, this);
+		progressRenderMap[Progress::Attack] = std::bind(&Referee::Object::Attack_Render, this);
+		progressRenderMap[Progress::Game] = std::bind(&Referee::Object::Game_Render, this);
+		progressRenderMap[Progress::Result] = std::bind(&Referee::Object::Result_Render, this);
+	}
+	void Object::ProgressMap_Finalize() {
+		this->progressUpDateMap.clear();
+		this->progressRenderMap.clear();
+	}
+
+	// 実行モード更新処理
+	void Object::Progress_UpDate(Progress progress_) {
+		//選択された進行モードの関数が存在するか？ 存在しなければ0，すれば1を返す
+		if (progressUpDateMap.count(progress_) == 1) {
+			progressUpDateMap[progress_]();
+		}
+	}
+	void Object::FirstSecond_UpDate() {
+		auto inp = ge->in1->GetState();
+		//最小値最大値を超えないための処理
+		if (inp.LStick.BU.down) {//上
+			se::Play("decision");
+			this->selectAttackType = (this->selectAttackType + 1) % 3;
+		}
+		else if (inp.LStick.BD.down) {//下
+			se::Play("decision");
+			--this->selectAttackType;
+			if (this->selectAttackType < 0) {
+				this->selectAttackType = 2;
+			}
+		}
+		//もし数字が確定したなら
+		if (inp.SE.down) {
+			se::Play("Select");
+			if (this->selectAttackType < 2) {
+				this->isPlayerTurn = (this->selectAttackType % 2 == 0);
+			}
+			else {
+				//乱数で決定する
+				this->isPlayerTurn = (GetRandom<int>(0, 9) % 2 == 0);
+			}
+			//ゲームモードに移行
+			this->progressMode = Progress::Attack;
+		}
+	}
+	void Object::Attack_UpDate() {
+		auto inp = ge->in1->GetState();
+
+		if (this->effectCnt < 30) { this->effectCnt += 2; }
+		if (inp.SE.down) {
+			se::Play("Select");
+			this->progressMode = Progress::Game;
+		}
+	}
+	void Object::Game_UpDate() {
+		GameMode_UpDate(this->mode);
+	}
+	//void Result_UpDate();
+	
+	//-------------------------------------------------------------------
+	// 進行モード描画
+	void Object::Progress_Render(Progress progress_) {
+		if (progressRenderMap.count(progress_) == 1) {
+			progressRenderMap[progress_]();
+		}
+	}
+	void Object::FirstSecond_Render() {
+		{
+			//どうする
+			ML::Box2D draw(150, 230, 956, 137);
+			ML::Box2D src(0, 0, 637, 91);//この値を1.5倍で描画
+			this->res->imgSelector->Draw(draw, src);
+		}
+		{
+			//項目表示(先攻/後攻/コンピュータが決める)
+			ML::Box2D drawSel(150, ge->screenHeight / 2, 956, 137);
+			ML::Box2D srcSel(0, 91 * (this->selectAttackType + 1), 637, 91);//この値を1.5倍
+			this->res->imgSelector->Draw(drawSel, srcSel);
+		}
+		{	//操作方法表示
+
+			//順番の選択
+			ML::Box2D draw1(0, 0, 560, 92);
+			draw1.Offset((int)ge->screenWidth - draw1.w, (int)ge->screenHeight - draw1.h * 2);
+			ML::Box2D src1(0, 92 * 2, 560, 92);
+			//決定
+			ML::Box2D draw2(0, 0, 560, 92);
+			draw2.Offset((int)ge->screenWidth - draw2.w, (int)ge->screenHeight - draw2.h);
+			ML::Box2D src2(0, 0, 560, 92);
+
+			this->res->imgController->Draw(draw1, src1);
+			this->res->imgController->Draw(draw2, src2);
+		}
+	}
+	void Object::Attack_Render() {
+		//先攻、後攻
+		ML::Box2D draw = MyGameLib::SetCenteredBox(ge->screenWidth / 2, ge->screenHeight / 2, 30 * this->effectCnt, 15 * this->effectCnt);
+		//draw = MyGameLib::SetCenteredBox(ge->screenWidth / 2, ge->screenHeight / 2, 64, 84);
+		ML::Box2D src(0, this->isPlayerTurn ? 90 : 180, 180, 90);
+		this->res->imgFirSecAttack->Draw(draw, src);
+
+		//あなたは？
+		ML::Box2D drawYour(0, 0, 9 * this->effectCnt, 3 * this->effectCnt);
+		drawYour.Offset(draw.x - drawYour.w / 2, draw.y - drawYour.h / 2);
+		//draw = MyGameLib::SetCenteredBox(ge->screenWidth / 2, ge->screenHeight / 2, 64, 84);
+		ML::Box2D srcYour(0, 0, 270, 90);
+		this->res->imgFirSecAttack->Draw(drawYour, srcYour);
+
+		//次へ
+		ML::Box2D drawNext(0, 0, 320, 92);
+		drawNext.Offset((int)ge->screenWidth - drawNext.w, (int)ge->screenHeight - drawNext.h);
+		ML::Box2D srcNext(0, 0, 320, 92);
+		this->res->imgController->Draw(drawNext, srcNext);
+	}
+	void Object::Game_Render() {
+		GameMode_Render(this->mode);
+	}
+	void Object::Result_Render() {
+		ML::Box2D draw = MyGameLib::SetCenteredBox(ge->screenWidth / 2, ge->screenHeight / 3, 408 * 2, 91 * 2);
+		ML::Box2D src;
+		if (ge->GameClearFlag) {//プレイヤーの勝ち
+			src = ML::Box2D(0, 0, 408, 91);
+		}
+		else if (ge->GameOverFlag) {//プレイヤーの負け
+			src = ML::Box2D(0, 91, 408, 91);
+		}
+		this->res->imgJudgement->Draw(draw, src);
+
+		//終了
+		ML::Box2D drawNext = MyGameLib::SetCenteredBox(ge->screenWidth / 2, ge->screenHeight * 2 / 3, 270, 90);
+		ML::Box2D srcNext(0, 90, 270, 90);
+		this->res->imgTerminal->Draw(drawNext, srcNext);
+	}
+
+	//-------------------------------------------------------------------
+	// ゲームモード毎の処理
+	//-------------------------------------------------------------------
+	void Object::ModeMap_Initialize() {
+		//更新
+		gamemodeUpDateMap[GameMode::RefSet] = std::bind(&Referee::Object::Refset_UpDate, this);
+		gamemodeUpDateMap[GameMode::Effect] = std::bind(&Referee::Object::Effect_UpDate, this);
+		gamemodeUpDateMap[GameMode::Judge] = std::bind(&Referee::Object::Judge_UpDate, this);
+		gamemodeUpDateMap[GameMode::MiddleResult] = std::bind(&Referee::Object::MiddleResult_UpDate, this);
+
+		//描画
+		gamemodeRenderMap[GameMode::PlayerSet] = std::bind(&Referee::Object::PleyerSet_Render, this);
+		gamemodeRenderMap[GameMode::Judge] = std::bind(&Referee::Object::JudgeMiddleResult_Render, this);
+		gamemodeRenderMap[GameMode::MiddleResult] = std::bind(&Referee::Object::JudgeMiddleResult_Render, this);
+	}
+	void Object::ModeMap_Finalize() {
+		this->gamemodeUpDateMap.clear();
+		this->gamemodeRenderMap.clear();
+	}
+
+	//-------------------------------------------------------------------
+	// 更新処理
+	void Object::GameMode_UpDate(GameMode mode_) {
+		if (mode_ == GameMode::PlayerSet) {
+			bool flag = true;
+		}
+		if (gamemodeUpDateMap.count(mode_) == 1) {
+			gamemodeUpDateMap[mode_]();
+		}
+	}
+
+	void Object::Refset_UpDate() {
+		auto pl = ge->GetTask<Player::Object>(Player::defGroupName, Player::defName);
+		auto ene = ge->GetTask<Enemy::Object>(Enemy::defGroupName, Enemy::defName);
+		if (pl == nullptr || ene == nullptr) { return; }
+
+		//全体であげられる手の取得（予想できる数の最大値を決める）
+		this->handMax = pl->myHandMax + ene->enemyHandMax;
+		this->smashHand = 0;
+		pl->myHand = 0;
+		ene->enemyHand = 0;
+		this->mode = GameMode::PlayerSet;
+		this->effectCnt = 0;
+	}
+	void Object::Effect_UpDate() {
+		auto pl = ge->GetTask<Player::Object>(Player::defGroupName, Player::defName);
+		if (pl == nullptr) { return; }
+
+		if (this->effectCnt == 0) {
+			//エフェクト開始
+			pl->myhandTmp = pl->myHand;//一時保存
+			pl->myHand = 0;//一度0クリア
+
+			ge->CreateEffect(98, ML::Vec2());//フェード
+			ge->CreateEffect(10, ML::Vec2());//ゆびすま～
+			//発音
+			se::Play(this->isPlayerTurn ? "player" : "cpu");
+		}
+		if (++this->effectCnt > 100) {
+			//エフェクト開始から一定秒数たってから判定を開始する
+			this->effectCnt = 0;
+			this->mode = GameMode::EnemySet;
+
+			pl->myHand = pl->myhandTmp;
+			pl->myhandTmp = 0;
+		}
+	}
+	void Object::Judge_UpDate() {
+		auto pl = ge->GetTask<Player::Object>(Player::defGroupName, Player::defName);
+		auto ene = ge->GetTask<Enemy::Object>(Enemy::defGroupName, Enemy::defName);
+		if (pl == nullptr || ene == nullptr) { return; }
+
+		//発音
+		{
+			string seName;
+			seName = (this->isPlayerTurn ? "player" : "cpu") + to_string(this->smashHand);
+			se::Play(seName);
+		}
+		//全体であげられた手を取得
+		this->hand = pl->myHand + ene->enemyHand;
+		this->isPredictably = this->hand == this->smashHand;
+		mode = GameMode::MiddleResult;
+	}
+	void Object::MiddleResult_UpDate() {
+		auto inp = ge->in1->GetState();
+		auto pl = ge->GetTask<Player::Object>(Player::defGroupName, Player::defName);
+		auto ene = ge->GetTask<Enemy::Object>(Enemy::defGroupName, Enemy::defName);
+		if (pl == nullptr || ene == nullptr) { return; }
+
+		if (this->effectCnt < 30) { this->effectCnt += 2; }
+		//Aキーが押されたら
+		if (inp.SE.down) {
+			se::Play("Select");
+			//どちらかの指が先に降りたらループを抜ける
+			//予想された値と全体であげられた値が同じなら（予想通りなら）予想した側のあげられる指の数を減らす
+			if (this->isPredictably) {
+				if (this->isPlayerTurn) {
+					--pl->myHandMax;
+				}
+				else {
+					--ene->enemyHandMax;
+				}
+			}
+			//どちらかの指の数がなくなったら次へ
+			if (pl->myHandMax == 0 || ene->enemyHandMax == 0) {
+				if (pl->myHandMax == 0) {
+					ge->GameClearFlag = true;
+				}
+				else if (ene->enemyHandMax == 0) {
+					ge->GameOverFlag = true;
+				}
+				this->progressMode = Progress::Result;
+			}
+			else {
+				//なくなっていなければターンを切り替える
+				this->isPlayerTurn = !this->isPlayerTurn;
+
+				//審判モードに戻す
+				this->mode = GameMode::RefSet;
+
+				//デイカウント
+				++dayCnt;
+			}
+		}
+	}
+
+	//-------------------------------------------------------------------
+	// 描画処理
+	void Object::GameMode_Render(GameMode mode_) {
+		ML::Color white(1.0f, 1.0f, 1.0f, 1.0f);
+		ML::Color red(1.0f, 1.0f, 0.7f, 0.0f);
+
+		//共通
+		{
+			//敵表示
+			ML::Box2D draw(0, 630, 220, 100);
+			ML::Box2D src(0, 0, 221, 97);
+			this->res->imgPlayer->Draw(draw, src, this->isPlayerTurn ? red : white);
+		}
+		{
+			//プレイヤー表示
+			ML::Box2D draw(1130, 630, 150, 90);
+			ML::Box2D src(0, 0, 149, 90);
+			this->res->imgCPU->Draw(draw, src, !this->isPlayerTurn ? red : white);
+		}
+		{
+			//あなたorCPUの番です
+			ML::Box2D draw(0, 0, 540, 68);//360 * 1.5f, 45 * 1.5f
+			ML::Box2D src(0, this->isPlayerTurn ? 0 : 90, 720, 90);
+			this->res->imgTurn->Draw(draw, src);
+		}
+		//経過時間の表示
+		Number_Render(800, ge->screenHeight - 90, 60, 90, this->dayCnt / 3 + 1, Dir::Left);
+		{
+			ML::Box2D draw(860, ge->screenHeight - 90, 150, 90);
+			ML::Box2D src(0, 0, 147, 87);
+			this->res->imgDays->Draw(draw, src);
+		}
+		
+		if (gamemodeRenderMap.count(mode_) == 1) {
+			gamemodeRenderMap[mode_]();
+		}
+	}
+
+	void Object::PleyerSet_Render() {
+		//操作方法表示
+		{
+			//『自分の出す指の数』
+			ML::Box2D draw1(0, 0, 771 / 2, 92 / 2);
+			draw1.Offset(ge->screenWidth - draw1.w, 0);
+			ML::Box2D src1(0, 92 * 3, 771, 92);
+
+			//『決定』
+			ML::Box2D draw2(0, 0, 771 / 2, 92 / 2);
+			draw2.Offset(ge->screenWidth - draw2.w, this->isPlayerTurn ? draw1.h * 2 : draw1.h);
+			ML::Box2D src2(0, 0, 771, 92);
+
+			this->res->imgController->Draw(draw1, src1);
+			this->res->imgController->Draw(draw2, src2);
+		}
+		//プレイヤーの攻撃時のみ
+		if (this->isPlayerTurn) {
+			{
+				//【予想された数】表示
+				ML::Box2D draw(300, 300, 536, 90);
+				ML::Box2D src(0, 0, 536, 90);
+				this->res->imgFingerLabel->Draw(draw, src);
+			}
+			{
+				//予想された【数】表示
+
+				Number_Render(840, 305, 64, 84, this->smashHand, Dir::Left);
+			}
+			{
+				//『予想する指の数』
+				ML::Box2D draw3(0, 0, 771 / 2, 92 / 2);
+				draw3.Offset(ge->screenWidth - draw3.w, draw3.h);
+				ML::Box2D src3(0, 92, 771, 92);
+				this->res->imgController->Draw(draw3, src3);
+			}
+
+		}
+	}
+	void Object::JudgeMiddleResult_Render() {
+		//ゆびすま～〇！
+		ML::Box2D draw = MyGameLib::SetCenteredBox(ge->screenWidth / 2, ge->screenHeight / 2, 15 * this->effectCnt, 23 * this->effectCnt);
+		Number_Render(draw.x, draw.y, draw.w, draw.h, this->smashHand, Dir::Left);
+
+		//次へ
+		ML::Box2D drawNext(0, 0, 270, 90);
+		drawNext.Offset(ge->screenWidth - drawNext.w, 0);
+		ML::Box2D srcNext(0, 0, 270, 90);
+		this->res->imgTerminal->Draw(drawNext, srcNext);
+
+		if (this->isPlayerTurn) {
+			//あたりorはずれ
+			ML::Box2D drawJudge(draw.x + draw.w * 4 / 5, draw.y + draw.h * 3 / 5, 8 * this->effectCnt, (int)(3.45f * this->effectCnt));
+			ML::Box2D srcJudge(0, 0, 199, 86);
+			if (!this->isPredictably) {
+				srcJudge.Offset(0, 86);
+			}
+			this->res->imgMiddleResult->Draw(drawJudge, srcJudge);
+		}
+
 
 	}
 

@@ -3,13 +3,15 @@
 //-------------------------------------------------------------------
 #include  "MyPG.h"
 #include  "Task_Game.h"
-#include  "Task_Ending.h"
-#include  "Task_Rule.h"
+
 #include  "sound.h"
 
+#include  "Task_Rule.h"
 #include  "Task_Referee.h"
 #include  "Task_Player.h"
 #include  "Task_Enemy.h"
+
+#include  "Task_Ending.h"
 
 namespace  Game
 {
@@ -41,8 +43,8 @@ namespace  Game
 		this->render2D_Priority[1] = 0.9f;
 
 		this->isPause = false;
-		this->plHandMax = this->eneHandMax = 0;
 		this->fadeCnt = 0;
+
 		//★タスクの生成
 		Referee::Object::Create(true);
 		Player::Object::Create(true);
@@ -73,38 +75,31 @@ namespace  Game
 	{
 		auto inp = ge->in1->GetState( );
 		//ポーズ処理
-		if (inp.B1.down && !this->isPause) {
+
+		if (inp.B1.down) {
 			se::Play("Select");
-			ge->StopAll_G(Referee::defGroupName, true);
-			ge->StopAll_G(Player::defGroupName, true);
-			ge->StopAll_G(Enemy::defGroupName, true);
-			isPause = true;
-			Rule::Object::Create(true);
-		}
-		else if (inp.B1.down && this->isPause) {
-			se::Play("Select");
-			ge->StopAll_G(Referee::defGroupName, false);
-			ge->StopAll_G(Player::defGroupName, false);
-			ge->StopAll_G(Enemy::defGroupName, false);
-			isPause = false;
-			ge->KillAll_G(Rule::defGroupName);
+			this->isPause = !this->isPause;
+			
+			ge->StopAll_G(Referee::defGroupName, this->isPause);
+			ge->StopAll_G(Player::defGroupName, this->isPause);
+			ge->StopAll_G(Enemy::defGroupName, this->isPause);
+
+			if (this->isPause) {
+				Rule::Object::Create(true);
+			}
+			else {
+				ge->KillAll_G(Rule::defGroupName);
+			}
 		}
 
-		//プレイヤーと敵の状態を取得する
-		auto pl = ge->GetTask<Player::Object>(Player::defGroupName, Player::defName);
-		auto ene = ge->GetTask<Enemy::Object>(Enemy::defGroupName, Enemy::defName);
-		//受け取ることができない場合は処理をしない
-		if (pl == nullptr || ene == nullptr) { return; }
-		
 		//審判の情報を取得
 		ge->qa_Ref = ge->GetTask<Referee::Object>(Referee::defGroupName, Referee::defName);
 
-		this->plHandMax = pl->myHandMax;
-		this->eneHandMax = ene->enemyHandMax;
-
 		//結果が表示中でプレイヤーか敵が勝利しSキーの入力があったとき
+		if (ge->qa_Ref->progressMode == Referee::Object::Progress::Result
+			&& (ge->GameClearFlag || ge->GameOverFlag) 
+			&& inp.ST.down) {
 
-		if (ge->qa_Ref->progressMode == Referee::Object::Progress::Result && (ge->GameClearFlag || ge->GameOverFlag) && inp.ST.down) {
 			se::Play("Select");
 			//自身に消滅要請
 			this->Kill();

@@ -50,6 +50,6 @@ namespace  Ending
 	public:
 		//追加したい変数・メソッドはここに追加する
 		
-		int			endEffectCnt;		//エフェクトカウント（エンドタスク）
+		int			effectCnt;		//エフェクトカウント（エンドタスク）
 	};
 }

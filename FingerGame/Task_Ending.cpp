@@ -3,6 +3,7 @@
 //-------------------------------------------------------------------
 #include  "MyPG.h"
 #include  "Task_Ending.h"
+
 #include  "Task_Title.h"
 
 namespace  Ending
@@ -36,7 +37,7 @@ namespace  Ending
 		this->res = Resource::Create();
 
 		//★タスクの生成
-		this->endEffectCnt = 0;
+		this->effectCnt = 0;
 		return  true;
 	}
 	//-------------------------------------------------------------------
@@ -59,17 +60,12 @@ namespace  Ending
 	{
 		auto inp = ge->in1->GetState();
 
-		//180*5 = 900
-
-		++this->endEffectCnt;
-
-		//if (inp.ST.down) {
-
-		if (this->endEffectCnt == 180 * 7) {
+		++this->effectCnt;
+		if (this->effectCnt == 180 * 7) {
 			//エフェクト開始
 			ge->CreateEffect(99, ML::Vec2());
 		}
-		if (this->endEffectCnt >= 180 * 7 + 50) {
+		if (this->effectCnt >= 180 * 7 + 50) {
 			//自身に消滅要請
 			this->Kill();
 		}
@@ -83,24 +79,15 @@ namespace  Ending
 		ML::Box2D srcBG(0, 0, 1280, 720);
 		this->res->imgBG->Draw(drawBG, srcBG);
 
-		//-------
-		// BGM
-		// SE
-		// textImage
-		// handImage
-		// thank
-		//-------
-
-
-		if (this->endEffectCnt / 180 < 6) {
-			ML::Box2D drawEnd = GameLib::SetBoxByCenter(ge->screenWidth / 2, ge->screenHeight / 2, 900, 90);
-			ML::Box2D srcEnd(0, this->endEffectCnt / 180 * 90, 900, 90);
-			this->res->imgEndRoll->Draw(drawEnd, srcEnd, ML::Color(sin(ML::ToRadian(this->endEffectCnt - 180.0f * (this->endEffectCnt / 180))), 1, 1, 1));
+		if (this->effectCnt / 180 < 6) {
+			ML::Box2D drawEndRoll = MyGameLib::SetCenteredBox(ge->screenWidth / 2, ge->screenHeight / 2, 900, 90);
+			ML::Box2D srcEndRoll(0, this->effectCnt / 180 * 90, 900, 90);
+			this->res->imgEndRoll->Draw(drawEndRoll, srcEndRoll, ML::Color(sin(ML::ToRadian(this->effectCnt - 180.0f * (this->effectCnt / 180))), 1, 1, 1));
 		}
-		else if (this->endEffectCnt <= 180*7) {
-			ML::Box2D draw = GameLib::SetBoxByCenter(ge->screenWidth / 2, ge->screenHeight / 2, 759, 101);
-			ML::Box2D src(0, 0, 759, 101);
-			this->res->imgThanks->Draw(draw, src, ML::Color(sin(ML::ToRadian((float)this->endEffectCnt)), 1, 1, 1));
+		else if (this->effectCnt <= 180*7) {
+			ML::Box2D drawThanks = MyGameLib::SetCenteredBox(ge->screenWidth / 2, ge->screenHeight / 2, 759, 101);
+			ML::Box2D srcThanks(0, 0, 759, 101);
+			this->res->imgThanks->Draw(drawThanks, srcThanks, ML::Color(sin(ML::ToRadian((float)this->effectCnt)), 1, 1, 1));
 		}
 	}
 

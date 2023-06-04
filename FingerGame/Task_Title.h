@@ -27,7 +27,7 @@ namespace  Title
 		DG::Image::SP	imgTitle;	//タイトル
 		DG::Image::SP   imgLabel;	//スタートラベル
 		DG::Image::SP   imgComp;	//作成者表示
-		DG::Image::SP   imghelp;	//ヘルプ
+		DG::Image::SP   imgHelpLabel;	//ヘルプ
 		
 	};
 	//-------------------------------------------------------------------
@@ -52,14 +52,15 @@ namespace  Title
 	//変更可◇◇◇◇◇◇◇◇◇◇◇◇◇◇◇◇◇◇◇◇◇◇◇◇◇◇◇
 	public:
 		//追加したい変数・メソッドはここに追加する
-		bool			isNextScene;	//次のシーンに代わる際にtrue
-		bool			titleBound;		//タイトルは跳ねたらtrue
-		bool			isTitleStop;	//タイトルは止まっていたらtrue
-		bool			helpFlag;		//ヘルプが表示中でtrue
+		bool	isNextScene;	//次のシーンに代わる際にtrue
+		bool	isTitleBound;	//タイトルは跳ねた？
+		bool	isTitleStop;	//タイトルは止まっているか？
+		bool	isShowHelp;		//ヘルプが表示中か？
 
-		int				fadeCnt;		//フェードカウンタ
-		float			fallSpeed;		//タイトルの落下速度
-		float			titlePosY;		//タイトルのY座標
-		int				flashCnt;		//点滅カウンタ
+		float	fallSpeed;		//タイトルの落下速度
+		float	titlePosY;		//タイトルのY座標
+
+		int		fadeCnt;		//フェードカウンタ
+		int		flashCnt;		//点滅カウンタ
 	};
 }

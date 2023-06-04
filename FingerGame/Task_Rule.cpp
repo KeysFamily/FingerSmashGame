@@ -69,11 +69,11 @@ namespace  Rule
 		ML::Box2D srcBG(0, 0, 100, 100);
 		this->res->imgBG->Draw(drawBG, srcBG, ML::Color(0.5f, 1.0f, 1.0f, 1.0f));
 
-		ML::Box2D drawTitle = GameLib::SetBoxByCenter(ge->screenWidth / 2, 45, 380, 90);
+		ML::Box2D drawTitle = MyGameLib::SetCenteredBox(ge->screenWidth / 2, 45, 380, 90);
 		ML::Box2D srcTitle(0, 0, 380, 90);
 		this->res->imgRuleTitle->Draw(drawTitle, srcTitle);
 
-		ML::Box2D drawRule = GameLib::SetBoxByCenter(ge->screenWidth / 2, ge->screenHeight / 2, 1000, 540);
+		ML::Box2D drawRule = MyGameLib::SetCenteredBox(ge->screenWidth / 2, ge->screenHeight / 2, 1000, 540);
 		ML::Box2D srcRule(0, 0, 1223, 659);
 		this->res->imgRule->Draw(drawRule, srcRule);
 

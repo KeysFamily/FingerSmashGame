@@ -3,9 +3,12 @@
 //-------------------------------------------------------------------
 #include  "MyPG.h"
 #include  "Task_Title.h"
-#include  "Task_Game.h"
-#include  "Task_Rule.h"
+
 #include  "sound.h"
+
+#include  "Task_Rule.h"
+
+#include  "Task_Game.h"
 
 namespace  Title
 {
@@ -18,7 +21,7 @@ namespace  Title
 		this->imgLabel = DG::Image::Create("./data/image/startLabel.png");
 		this->imgComp = DG::Image::Create("./data/image/Create.png");
 		this->imgBG = DG::Image::Create("./data/image/titleBG1280x720.jpg");
-		this->imghelp = DG::Image::Create("./data/image/helpLabel920x92.png");
+		this->imgHelpLabel = DG::Image::Create("./data/image/helpLabel920x92.png");
 		return true;
 	}
 	//-------------------------------------------------------------------
@@ -29,7 +32,7 @@ namespace  Title
 		this->imgLabel.reset();
 		this->imgComp.reset();
 		this->imgBG.reset();
-		this->imghelp.reset();
+		this->imgHelpLabel.reset();
 		return true;
 	}
 	//-------------------------------------------------------------------
@@ -44,13 +47,14 @@ namespace  Title
 		this->render2D_Priority[1] = 0.5f;
 
 		this->isNextScene = false;
-		this->titleBound = false;
+		this->isTitleBound = false;
 		this->isTitleStop = false;
-		this->helpFlag = false;
+		this->isShowHelp = false;
 
 		this->titlePosY = -196.0f;
-		this->fadeCnt = 0;
 		this->fallSpeed = 20;
+
+		this->fadeCnt = 0;
 		this->flashCnt = 0;
 
 		//★タスクの生成
@@ -78,19 +82,19 @@ namespace  Title
 		auto inp = ge->in1->GetState();
 		//ヘルプ画面の表示
 		if (this->isTitleStop) {
-			if (inp.B1.down && !this->helpFlag) {
+			if (inp.B1.down) {
 				se::Play("Select");
-				this->helpFlag = true;
-				Rule::Object::Create(true);
-			}
-			else if (inp.B1.down && this->helpFlag) {
-				se::Play("Select");
-				this->helpFlag = false;
-				ge->KillAll_G(Rule::defGroupName);
+				this->isShowHelp = !this->isShowHelp;
+				if (this->isShowHelp) {
+					Rule::Object::Create(true);
+				}
+				else {
+					ge->KillAll_G(Rule::defGroupName);
+				}
 			}
 		}
 
-
+		//登場エフェクト
 
 		if (!this->isTitleStop) {
 			//タイトルが落下中なら落下速度に基づいて、タイトルを落下させる
@@ -101,9 +105,9 @@ namespace  Title
 		}
 
 
-		if (this->titlePosY > 190 && !this->titleBound) {
+		if (this->titlePosY > 190 && !this->isTitleBound) {
 			//一回目のバウンド
-			this->titleBound = true;
+			this->isTitleBound = true;
 			this->fallSpeed *= -0.3f;
 		}
 		//2回目ではバウンドしない
@@ -117,8 +121,9 @@ namespace  Title
 			this->fallSpeed += ML::Gravity(64.0f);
 		}
 
+
 		//タイトルが静止中にボタンが押されたら
-		if (inp.ST.down && this->isTitleStop) {
+		if (inp.ST.down && this->isTitleStop && !this->isShowHelp) {
 			se::Play("Select");
 			this->isNextScene = true;
 			this->fadeCnt = 0;
@@ -142,21 +147,21 @@ namespace  Title
 		this->res->imgBG->Draw(drawBG, srcBG);
 		
 		//ヘルプを表示する場合は以下を表示しない
-		if (this->helpFlag) { return; }
+		if (this->isShowHelp) { return; }
 		{
 			//タイトル
-			ML::Box2D draw(0, 0, 451 * 2, 98 * 2);
-			draw.Offset(ge->screenWidth / 2.0f - draw.w / 2.0f, this->titlePosY);
-			ML::Box2D src(0, 0, 451, 98);
-			this->res->imgTitle->Draw(draw, src);
+			ML::Box2D drawTitle(0, 0, 451 * 2, 98 * 2);
+			drawTitle.Offset(ge->screenWidth / 2.0f - drawTitle.w / 2.0f, this->titlePosY);
+			ML::Box2D srcTitle(0, 0, 451, 98);
+			this->res->imgTitle->Draw(drawTitle, srcTitle);
 		}
 		//タイトルが停止していれば表示
 		if(this->isTitleStop){
 			//ラベル
-			ML::Box2D draw(0, 0, 755, 101);
-			draw.Offset(ge->screenWidth / 2 - draw.w / 2, 450);
-			ML::Box2D src(0, 0, 755, 101);
-			this->res->imgLabel->Draw(draw, src, ML::Color(1.0f - (this->flashCnt / 60 % 2), 1.0f, 1.0f, 1.0f));
+			ML::Box2D drawLabel(0, 0, 755, 101);
+			drawLabel.Offset(ge->screenWidth / 2 - drawLabel.w / 2, 450);
+			ML::Box2D srcLabel(0, 0, 755, 101);
+			this->res->imgLabel->Draw(drawLabel, srcLabel, ML::Color(1.0f - (this->flashCnt / 60 % 2), 1.0f, 1.0f, 1.0f));
 		
 			//製作者
 			ML::Box2D drawComp(0, 0, 317, 83);
@@ -165,10 +170,10 @@ namespace  Title
 			this->res->imgComp->Draw(drawComp, srcComp);
 			
 			//ヘルプラベル
-			ML::Box2D drawHelp(0, 0, 850, 85);
-			drawHelp.Offset(0, (int)ge->screenHeight - drawHelp.h);
-			ML::Box2D srcHelp(0, 0, 920, 92);
-			this->res->imghelp->Draw(drawHelp, srcHelp);
+			ML::Box2D drawHelpLabel(0, 0, 850, 85);
+			drawHelpLabel.Offset(0, (int)ge->screenHeight - drawHelpLabel.h);
+			ML::Box2D srcHelpLabel(0, 0, 920, 92);
+			this->res->imgHelpLabel->Draw(drawHelpLabel, srcHelpLabel);
 		}
 		
 	}

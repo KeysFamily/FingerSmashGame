@@ -1,15 +1,21 @@
+//-----------------------------------------------------------------------------
+// 制作補助用
+// 
+// 作成者 長谷川勇一朗
+// 機能：オブジェクトを中心基準で扱う際の矩形データの作成
+//-----------------------------------------------------------------------------
+
 #pragma once
 #include "myLib.h"
 
-namespace GameLib {
-	//オブジェクト設定系
+namespace MyGameLib {
 
 	// オブジェクトの基準を中心にする関数
 	// 引数
 	// int w_ オブジェクトの幅
 	// int h_ オブジェクトの高さ
 	// 戻り値
-	// ML::Box2D型 
+	// ML::Box2D 中心が(0,0)の矩形データ
 	ML::Box2D SetCenteredBox(int w_, int h_);
 
 	//基準が中心のオブジェクトを指定した位置に配置
@@ -19,7 +25,7 @@ namespace GameLib {
 	// int w_ オブジェクトの幅
 	// int h_ オブジェクトの高さ
 	// 戻り値
-	// ML::Box2D型 
-	ML::Box2D SetBoxByCenter(int x_, int y_, int w_, int h_);
+	// ML::Box2D型 中心が(x_,y_)の矩形データ
+	ML::Box2D SetCenteredBox(int x_, int y_, int w_, int h_);
 
 }
