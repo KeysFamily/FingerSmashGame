@@ -53,5 +53,20 @@ namespace  Enemy
 
 		int enemyHandMax;	//手の最大値
 		int enemyHand;		//自分の出せる手の数
+		//以下全体処理
+
+		using EnemySetMap = std::map<int, std::function<void()>>;
+		EnemySetMap enemySetMap;
+	private:
+		void EnemySetMap_Initialize();
+		void EnemySetMap_Finalize();
+		void EnemySetMap_UpDate(bool isEnemyTrun_);
+
+		void EnemySetIfPlayerTurn();//プレイヤーのTurnの場合
+		void EnemySetIfAllHand4();
+		void EnemySetIfAllHand3();
+		void EnemySetIfAllHand2();
+
+
 	};
 }

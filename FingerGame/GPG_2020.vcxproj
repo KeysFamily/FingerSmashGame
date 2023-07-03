@@ -119,7 +119,6 @@
     </Link>
   </ItemDefinitionGroup>
   <ItemGroup>
-    <ClCompile Include="BHand.cpp" />
     <ClCompile Include="DG2014\DG2014_DGObject.cpp" />
     <ClCompile Include="DG2014\DG2014_Effect.cpp" />
     <ClCompile Include="DG2014\DG2014_Font.cpp" />
@@ -153,7 +152,6 @@
     <ClCompile Include="XI2018_Ver1_0.cpp" />
   </ItemGroup>
   <ItemGroup>
-    <ClInclude Include="BHand.h" />
     <ClInclude Include="DG2014\DG2014_DGObject.h" />
     <ClInclude Include="DG2014\DG2014_Effect.h" />
     <ClInclude Include="DG2014\DG2014_Font.h" />

@@ -121,9 +121,6 @@
     <ClCompile Include="Task_Rule.cpp">
       <Filter>GameContents</Filter>
     </ClCompile>
-    <ClCompile Include="BHand.cpp">
-      <Filter>GameContents</Filter>
-    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="GameEngine_Ver3_83.h">
@@ -212,9 +209,6 @@
       <Filter>自作・引用ライブラリ</Filter>
     </ClInclude>
     <ClInclude Include="Task_Rule.h">
-      <Filter>GameContents</Filter>
-    </ClInclude>
-    <ClInclude Include="BHand.h">
       <Filter>GameContents</Filter>
     </ClInclude>
   </ItemGroup>

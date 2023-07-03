@@ -82,13 +82,9 @@ namespace  Referee
 		};
 		Progress progressMode;
 
-#if false
-		typedef std::map<Referee::Object::GameMode, std::function<void()>> GameModeMap;
-		typedef std::map<Progress, std::function<void()>> ProgressMap;
-#else
-		using GameModeMap = std::map<Referee::Object::GameMode, std::function<void()>>;
+
+		using GameModeMap = std::map<GameMode, std::function<void()>>;
 		using ProgressMap = std::map<Progress, std::function<void()>>;
-#endif
 		
 		bool isPlayerTurn;	//プレイヤーの番か？
 		bool isPredictably;	//予想された数と実際の数が同じか？

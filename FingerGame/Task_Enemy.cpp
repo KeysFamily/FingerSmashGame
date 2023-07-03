@@ -6,6 +6,7 @@
 
 #include  "randomLib.h"
 
+
 namespace  Enemy
 {
 	Resource::WP  Resource::instance;
@@ -39,6 +40,8 @@ namespace  Enemy
 		this->enemyHand = 0;
 		this->enemyHandMax = 2;
 
+		EnemySetMap_Initialize();
+
 		//★タスクの生成
 
 		return  true;
@@ -48,7 +51,7 @@ namespace  Enemy
 	bool  Object::Finalize()
 	{
 		//★データ＆タスク解放
-
+		this->EnemySetMap_Finalize();
 
 		if (!ge->QuitFlag() && this->nextTaskCreate) {
 			//★引き継ぎタスクの生成
@@ -69,43 +72,10 @@ namespace  Enemy
 		// →勝敗がつけばタスク終了
 		//**
 		
-		if (ge->qa_Ref->progressMode == Referee::Object::Progress::Game) {
-			switch (ge->qa_Ref->mode) {
-			case Referee::Object::GameMode::EnemySet://敵の値セット
-				if (!ge->qa_Ref->isPlayerTurn) {
-					//乱数で値を予想する
-					ge->qa_Ref->smashHand = GetRandom<int>(0, ge->qa_Ref->handMax);
-					//予想された値は全体の指の数の最大値か(trueで全部出す)
-					if (ge->qa_Ref->smashHand == ge->qa_Ref->handMax) {
-						this->enemyHand = this->enemyHandMax;
-					}
-					//予想された値は0か(trueなら出さない)
-					else if (ge->qa_Ref->smashHand == 0) {
-						this->enemyHand = 0;
-					}
-					//予想された値は3で自分の手の数は2か(trueなら出す)
-					else if (ge->qa_Ref->smashHand == 3 && this->enemyHandMax == 2
-						 || ge->qa_Ref->smashHand == 2 && this->enemyHandMax == 2) {
-						this->enemyHand = GetRandom<int>(1, 2);
-					}
-					//予想された値は3で自分の手の数は1か(trueなら出さなくてもよい)
-					else if (ge->qa_Ref->smashHand == 3 && this->enemyHandMax == 1) {
-						this->enemyHand = GetRandom<int>(0, this->enemyHandMax);
-					}
-					//出さなくてもよい
-					else {
-						this->enemyHand = GetRandom<int>(0, this->enemyHandMax);
-					}
-				}
-				else {
-					this->enemyHand = GetRandom<int>(0, this->enemyHandMax);
-				}
-				ge->qa_Ref->mode = Referee::Object::GameMode::Judge;
-				//Sleep(500);
-				break;
-			default:
-				break;
-			}
+		if (ge->qa_Ref->progressMode == Referee::Object::Progress::Game
+			&& ge->qa_Ref->mode == Referee::Object::GameMode::EnemySet) {
+			this->EnemySetMap_UpDate(ge->qa_Ref->isPlayerTurn);
+			ge->qa_Ref->mode = Referee::Object::GameMode::Judge;
 		}
 	}
 	//-------------------------------------------------------------------
@@ -133,6 +103,117 @@ namespace  Enemy
 				this->res->img->Draw(draw, src, ML::Color(1.0f, 0.8f, 1.0f, 0.8f));
 				this->res->img->Rotation(0.0f, ML::Vec2(0.0f, 0.0f));
 			}
+		}
+	}
+
+
+	//-------------------------------------------------------------------
+	// 全体の指の数による処理
+	void Object::EnemySetMap_Initialize() {
+		this->enemySetMap[4] = std::bind(&Object::EnemySetIfAllHand4, this);
+		this->enemySetMap[3] = std::bind(&Object::EnemySetIfAllHand3, this);
+		this->enemySetMap[2] = std::bind(&Object::EnemySetIfAllHand2, this);
+	}
+	void Object::EnemySetMap_Finalize() {
+		this->enemySetMap.clear();
+	}
+	void Object::EnemySetMap_UpDate(bool isPlayerTrun_) {
+		if (isPlayerTrun_) {
+			this->EnemySetIfPlayerTurn();
+		}
+		else {
+			if (this->enemySetMap.count(ge->qa_Ref->handMax) == 1) {
+				this->enemySetMap[ge->qa_Ref->handMax]();
+			}
+			else {
+				ML::MsgBox("予期せぬ処理が検出されました");
+				ge->qa_Ref->smashHand = 0;
+				this->enemyHand = 0;
+			}
+		}
+	}
+
+	void Object::EnemySetIfPlayerTurn() {
+		this->enemyHand = GetRandom<int>(0, this->enemyHandMax);
+	}
+	void Object::EnemySetIfAllHand4() {
+		//----------------------------------------------------------------------------
+		//全体の指の数が4本の時(互いに2つずつ)の指の出し方
+		//(ア)	指スマ4･･･全部出す
+		//(イ)	指スマ3･･･1つ以上出す
+		//(ウ)	指スマ2･･･2本まで、出さなくてもよい
+		//(エ)	指スマ1･･･1本まで、出さなくてもよい
+		//(オ)	指スマ0･･･出さない
+		//----------------------------------------------------------------------------
+
+		ge->qa_Ref->smashHand = GetRandom<int>(0, 4);
+		switch (ge->qa_Ref->smashHand) {
+		case 4:
+			this->enemyHand = this->enemyHandMax;
+			break;
+		case 3:
+			this->enemyHand = GetRandom<int>(1, 2);
+			break;
+		case 2:
+			this->enemyHand = GetRandom<int>(0, this->enemyHandMax);
+			break;
+		case 1:
+			this->enemyHand = GetRandom<int>(0, 1);
+			break;
+		case 0:
+			this->enemyHand = 0;
+			break;
+		}
+	}
+	void Object::EnemySetIfAllHand3() {
+		//----------------------------------------------------------------------------
+		//全体の指の数が3本の時の指の出し方
+		//(ア)	指スマ3･･･全部出す
+		//(イ)	指スマ2･･･敵指残り2本:1つ以上出す､敵指残り1本:1本まで出さなくてもよい
+		//(ウ)	指スマ1･･･1本まで、出さなくてもよい
+		//(エ)	指スマ0･･･出さない｡
+		//----------------------------------------------------------------------------
+
+		ge->qa_Ref->smashHand = GetRandom<int>(0, 3);
+		switch (ge->qa_Ref->smashHand) {
+		case 3:
+			this->enemyHand = this->enemyHandMax;
+			break;
+		case 2:
+			if (this->enemyHandMax == 2) {
+				this->enemyHand = GetRandom<int>(1, enemyHandMax);
+			}
+			else {
+				this->enemyHand = GetRandom<int>(0, enemyHandMax);
+			}
+			break;
+		case 1:
+			this->enemyHand = GetRandom<int>(0, 1);
+			break;
+		case 0:
+			this->enemyHand = 0;
+			break;
+		}
+	}
+	void Object::EnemySetIfAllHand2() {
+		//----------------------------------------------------------------------------
+		// 全体の指の数が2本の時(互いに1つずつ)の指の出し方
+		//(ア)	指スマ2･･･全部出す
+		//(イ)	指スマ1･･･出さなくてもよい
+		//(ウ)	指スマ0･･･出さない
+		//----------------------------------------------------------------------------
+
+		ge->qa_Ref->smashHand = GetRandom<int>(0, 2);
+		switch (ge->qa_Ref->smashHand) {
+		case 2:
+			this->enemyHand = this->enemyHandMax;
+			break;
+		case 1:
+			this->enemyHand = GetRandom<int>(0, this->enemyHandMax);
+			break;
+		case 0:
+			this->enemyHand = 0;
+			break;
 		}
 	}
 
